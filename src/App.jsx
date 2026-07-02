@@ -1,16 +1,21 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./views/Login";
-import Dashboard from "./views/Dashboard"; // 👈 Asegúrate de que este componente exista
+import Dashboard from "./views/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
-        
-        {/* 🚨 Esta es la ruta que está buscando el navigate: */}
-        <Route path="/dashboard" element={<Dashboard />} /> 
-      </Routes>
+        <Route
+        path="/dashboard" element={
+        <ProtectedRoute>
+          <Dashboard/>
+        </ProtectedRoute>
+        } 
+      /> 
+    </Routes>
   );
 }
 
