@@ -46,7 +46,7 @@ npm install
 ### 3. Configurar variables de entorno
 Crea un archivo .env en la raíz del proyecto para apuntar a la dirección de tu backend.
 
-##📂 Estructura del Proyecto
+## 📂 Estructura del Proyecto
 src/
 ├── assets/         # Imágenes y recursos estáticos
 ├── components/     # Componentes reutilizables de la interfaz
