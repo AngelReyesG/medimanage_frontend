@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./views/Login";
 import Dashboard from "./views/Dashboard";
-import Pacientes from "./views/Pacientes"; // 🚨 Crearemos este componente en el paso 3
+import Pacientes from "./views/Pacientes";
+import Citas from "./views/Citas";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
         } />
         
         <Route path="pacientes" element={<Pacientes />} />
+        <Route path="citas" element={<Citas />} />
       </Route>
     </Routes>
   );
