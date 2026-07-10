@@ -18,13 +18,19 @@ function Dashboard() {
       try {
         const response = await API.get("/api/dashboard/stats");
         setStats({
-          citasHoy: response.data.citasHoy,
-          pacientesNuevos: response.data.pacientesNuevos,
+          citasHoy: response.data.citasHoy || 0,
+          pacientesNuevos: response.data.pacientesNuevos || 0,
           loading: false,
           error: ""
         });
       } catch (err) {
-        setStats((prev) => ({ ...prev, loading: false, error: "No se pudieron sincronizar los datos." }));
+        console.error("Errpr capturado en Dashboard: ", err);
+        setStats({
+          citasHoy: 0,
+          pacientesNuevos: 0,
+          loading: false,
+          error: "No se pudieron sincronizar las estadísticas."
+      });
       }
     };
     cargarEstadisticas();
