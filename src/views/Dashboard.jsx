@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link, Outlet, useLocation } from "react-router-dom";
+import { useNavigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import API from "../services/api";
 
 function Dashboard() {
@@ -13,6 +13,11 @@ function Dashboard() {
     error: ""
   });
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
+  };
+
   useEffect(() => {
     const cargarEstadisticas = async () => {
       try {
@@ -24,22 +29,35 @@ function Dashboard() {
           error: ""
         });
       } catch (err) {
-        console.error("Errpr capturado en Dashboard: ", err);
+        console.error("Error capturado en Dashboard: ", err);
+        // Si es un error de autenticación, limpiamos sesión inmediatamente
+        if (err.response?.status === 401) {
+          handleLogout();
+          return;
+        }
         setStats({
           citasHoy: 0,
           pacientesNuevos: 0,
           loading: false,
           error: "No se pudieron sincronizar las estadísticas."
-      });
+        });
       }
     };
     cargarEstadisticas();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+  // Mapeo dinámico de títulos para el Header
+  const titulosVistas = {
+    "/dashboard": "Panel de Control",
+    "/dashboard/citas": "Gestión de Citas",
+    "/dashboard/pacientes": "Gestión de Pacientes"
   };
+
+  // Función helper para estilizar los NavLinks de forma limpia
+  const linkStyles = ({ isActive }) => 
+    `block px-4 py-2.5 rounded-lg font-medium transition-colors ${
+      isActive ? "bg-blue-600 text-white" : "text-slate-200 hover:bg-slate-800"
+    }`;
 
   return (
     <div className="min-h-screen bg-slate-100 flex">
@@ -48,31 +66,15 @@ function Dashboard() {
         <div>
           <h1 className="text-xl font-bold text-white mb-8 tracking-tight px-2">MediManage</h1>
           <nav className="space-y-2">
-            {/* Cambiado a <Link> profesionales */}
-            <Link 
-              to="/dashboard" 
-              className={`block px-4 py-2.5 rounded-lg font-medium transition-colors ${
-                location.pathname === "/dashboard" ? "bg-blue-600 text-white" : "hover:bg-slate-800"
-              }`}
-            >
+            <NavLink to="/dashboard" end className={linkStyles}>
               Panel Principal
-            </Link>
-            <Link 
-              to="/dashboard/citas" 
-              className={`block px-4 py-2.5 rounded-lg font-medium transition-colors ${
-                location.pathname === "/dashboard/citas" ? "bg-blue-600 text-white" : "hover:bg-slate-800"
-              }`}
-            >
+            </NavLink>
+            <NavLink to="/dashboard/citas" className={linkStyles}>
               Gestionar Citas
-            </Link>
-            <Link 
-              to="/dashboard/pacientes" 
-              className={`block px-4 py-2.5 rounded-lg font-medium transition-colors ${
-                location.pathname === "/dashboard/pacientes" ? "bg-blue-600 text-white" : "hover:bg-slate-800"
-              }`}
-            >
+            </NavLink>
+            <NavLink to="/dashboard/pacientes" className={linkStyles}>
               Pacientes
-            </Link>
+            </NavLink>
           </nav>
         </div>
         <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 rounded-lg hover:bg-red-900/50 hover:text-red-400 transition-colors font-medium">
@@ -84,14 +86,14 @@ function Dashboard() {
       <main className="flex-1 p-8">
         <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
           <h2 className="text-2xl font-bold text-slate-950">
-            {location.pathname === "/dashboard/pacientes" ? "Gestión de Pacientes" : "Panel de Control"}
+            {titulosVistas[location.pathname] || "Panel de Control"}
           </h2>
           <button onClick={handleLogout} className="md:hidden bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-sm font-semibold">
             Salir
           </button>
         </header>
 
-        {/* 🚨 Si estamos en /dashboard, mostramos el resumen. Si no, <Outlet /> renderiza la vista correspondiente */}
+        {/* Renderizado condicional del Home o las vistas hijas */}
         {location.pathname === "/dashboard" ? (
           <div>
             {stats.error && <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm">{stats.error}</div>}

@@ -52,6 +52,25 @@ function Citas() {
     obtenerCitas();
   }, []);
 
+  // Helper seguro para formatear la fecha y hora sin romper por la "T" o el espacio
+  const formatFechaHora = (strFecha) => {
+    if (!strFecha) return { fecha: "Sin fecha", hora: "" };
+    try {
+      // Reemplazamos espacio por T por si viene en formato plano del objeto descifrado
+      const isoStr = strFecha.includes(" ") ? strFecha.replace(" ", "T") : strFecha;
+      const dateObj = new Date(isoStr);
+      
+      if (isNaN(dateObj.getTime())) return { fecha: strFecha, hora: "" };
+
+      return {
+        fecha: dateObj.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        hora: dateObj.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) + " hrs"
+      };
+    } catch (e) {
+      return { fecha: "Formato inválido", hora: "" };
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden relative">
       
@@ -92,51 +111,50 @@ function Citas() {
                   </td>
                 </tr>
               ) : (
-                citas.map((cita) => (
-                  <tr key={cita.idCita} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-4 px-6 font-semibold text-slate-900">
-                      {cita.paciente ? `${cita.paciente.nombre} ${cita.paciente.apellidos}` : <span className="text-red-400 font-normal">No asignado</span>}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-slate-700">
-                          {cita.fechaHour || cita.fechaHora ? (cita.fechaHora || "").split(" ")[0] : "Sin fecha"}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {cita.fechaHour || cita.fechaHora ? `${(cita.fechaHora || "").split(" ")[1]} hrs` : ""}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-slate-500 max-w-xs truncate">
-                      {cita.motivo}
-                    </td>
-                    
-                    {/* 🚨 Gestión interactiva del Estado */}
-                    <td className="py-4 px-6 text-center">
-                      <div className="inline-flex items-center space-x-2">
-                        <select
-                          value={cita.estado}
-                          disabled={updatingId === cita.idCita}
-                          onChange={(e) => cambiarEstadoCita(cita.idCita, e.target.value)}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/10
-                            ${cita.estado === "PENDIENTE" ? "text-amber-700 border-amber-200 bg-amber-50/50" : ""}
-                            ${cita.estado === "CONFIRMADA" ? "text-emerald-700 border-emerald-200 bg-emerald-50/50" : ""}
-                            ${cita.estado === "CANCELADA" ? "text-rose-700 border-rose-200 bg-rose-50/50" : ""}
-                            ${cita.estado === "COMPLETADA" ? "text-blue-700 border-blue-200 bg-blue-50/50" : ""}
-                          `}
-                        >
-                          <option value="PENDIENTE">Pendiente</option>
-                          <option value="CONFIRMADA">Confirmada</option>
-                          <option value="COMPLETADA">Completada</option>
-                          <option value="CANCELADA">Cancelada</option>
-                        </select>
-                        {updatingId === cita.idCita && (
-                          <span className="text-[10px] text-slate-400 animate-pulse">...</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                citas.map((cita) => {
+                  const { fecha, hora } = formatFechaHora(cita.fechaHora || cita.fechaHour);
+                  return (
+                    <tr key={cita.idCita} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-4 px-6 font-semibold text-slate-900">
+                        {cita.paciente ? `${cita.paciente.nombre} ${cita.paciente.apellido || cita.paciente.apellidos || ''}` : <span className="text-red-400 font-normal">No asignado</span>}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-700">{fecha}</span>
+                          <span className="text-xs text-slate-400">{hora}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-slate-500 max-w-xs truncate">
+                        {cita.motivo}
+                      </td>
+                      
+                      {/* Gestión interactiva del Estado */}
+                      <td className="py-4 px-6 text-center">
+                        <div className="inline-flex items-center space-x-2">
+                          <select
+                            value={cita.estado}
+                            disabled={updatingId === cita.idCita}
+                            onChange={(e) => cambiarEstadoCita(cita.idCita, e.target.value)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/10
+                              ${cita.estado === "PENDIENTE" ? "text-amber-700 border-amber-200 bg-amber-50/50" : ""}
+                              ${cita.estado === "CONFIRMADA" ? "text-emerald-700 border-emerald-200 bg-emerald-50/50" : ""}
+                              ${cita.estado === "CANCELADA" ? "text-rose-700 border-rose-200 bg-rose-50/50" : ""}
+                              ${cita.estado === "COMPLETADA" ? "text-blue-700 border-blue-200 bg-blue-50/50" : ""}
+                            `}
+                          >
+                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="CONFIRMADA">Confirmada</option>
+                            <option value="COMPLETADA">Completada</option>
+                            <option value="CANCELADA">Cancelada</option>
+                          </select>
+                          {updatingId === cita.idCita && (
+                            <span className="text-[10px] text-slate-400 animate-pulse">...</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -14,7 +14,7 @@ function Pacientes() {
   // Estado para controlar la visibilidad del modal de registro
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 🚀 Estado para almacenar el paciente seleccionado para ver su expediente
+  // Estado para almacenar el paciente seleccionado para ver su expediente
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState(null);
 
   // Función para buscar o listar todos aprovechando el Backend
@@ -53,7 +53,7 @@ function Pacientes() {
 
   return (
     <div className="space-y-6">
-      {/* 🚀 CONTENEDOR GRID DINÁMICO: Si hay un paciente seleccionado se divide en 2 columnas, si no, se muestra en 1 sola */}
+      {/* CONTENEDOR GRID DINÁMICO: Si hay un paciente seleccionado se divide en 2 columnas, si no, se muestra en 1 sola */}
       <div className={`grid grid-cols-1 ${pacienteSeleccionado ? 'lg:grid-cols-12' : 'grid-cols-1'} gap-6`}>
         
         {/* COLUMNA DEL LISTADO CLÍNICO */}
@@ -157,7 +157,7 @@ function Pacientes() {
           )}
         </div>
 
-        {/* 🚀 COLUMNA DEL EXPEDIENTE CLÍNICO (Sólo se monta si hay selección) */}
+        {/* COLUMNA DEL EXPEDIENTE CLÍNICO (Sólo se monta si hay selección) */}
         {pacienteSeleccionado && (
           <div className="lg:col-span-7 xl:col-span-8 relative animate-fade-in">
             {/* Botón flotante para cerrar/deseleccionar el expediente */}

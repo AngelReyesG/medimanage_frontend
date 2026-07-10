@@ -1,22 +1,19 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import API from "../services/api";
 
 function ModalCita({ isOpen, onClose, onCitaCreada }) {
-  // Estado para el formulario alineado con CitaRequestDTO
-  const [formData, setFormData] = useState({
-    pacienteId: "",
-    fecha: "",
-    hora: "",
-    motivo: ""
-  });
-
-  // Estados para controlar el catálogo de pacientes necesarios en el select
   const [pacientes, setPacientes] = useState([]);
   const [loadingPacientes, setLoadingPacientes] = useState(false);
-  const [loading, setLoading] = useState(false);
+  
+  // Estados para el formulario de la Cita
+  const [idPaciente, setIdPaciente] = useState("");
+  const [fecha, setFecha] = useState("");
+  const [hora, setHora] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [error, setError] = useState("");
 
-  // Efecto para cargar los pacientes únicamente cuando se abre el modal
+  // Cargar lista corta de pacientes para el selector (Select) al abrir el modal
   useEffect(() => {
     if (isOpen) {
       const cargarPacientes = async () => {
@@ -25,176 +22,150 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
           const response = await API.get("/api/pacientes");
           setPacientes(response.data);
         } catch (err) {
-          console.error("Error al obtener catálogo de pacientes para el modal:", err);
-          setError("No se pudo cargar la lista de pacientes. Inténtalo de nuevo.");
+          console.error("Error al cargar pacientes para la cita:", err);
         } finally {
           setLoadingPacientes(false);
         }
       };
       cargarPacientes();
+      // Limpiar el formulario al abrirlo
+      setIdPaciente("");
+      setFecha("");
+      setHora("");
+      setMotivo("");
+      setError("");
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    if (!formData.pacienteId) {
-      setError("Por favor, selecciona un paciente de la lista.");
-      setLoading(false);
+    if (!idPaciente || !fecha || !hora || !motivo) {
+      setError("Todos los campos son obligatorios.");
       return;
     }
 
     try {
-      //Formatear la fecha de YYYY-MM-DD a dd/MM/yyyy
-      const [anio, mes, dia] = formData.fecha.split("-");
-      const fechaFormateada = `${dia}/${mes}/${anio}`;
+      setLoadingSubmit(true);
+      setError("");
+      
+      // Ajusta este objeto según los atributos exactos de tu entidad Cita en Spring Boot
+      await API.post("/api/citas", {
+        paciente: { idPaciente: parseInt(idPaciente) },
+        fecha,
+        hora,
+        motivo
+      });
 
-      //Unificar con la hora en el formato estricto
-      const fechaHoraCombinada = `${fechaFormateada} ${formData.hora}`;
-
-      // 🚨 3. Construir el Payload idéntico a tu CitaRequestDTO
-      const payload = {
-        pacienteId: Number(formData.pacienteId),
-        fechaHora: fechaHoraCombinada, // Envía "dd/MM/yyyy HH:mm"
-        motivo: formData.motivo
-      };
-
-      //Realizar la petición POST enviando el payload correcto
-      await API.post("/api/citas/registrar", payload);
-
-      //Notificar al padre, limpiar y cerrar
-      onCitaCreada();
-      setFormData({ pacienteId: "", fecha: "", hora: "", motivo: "" });
-      onClose();
+      onCitaCreada(); // Callback para refrescar el calendario o la tabla en Citas.jsx
+      onClose();      // Cerrar el modal
     } catch (err) {
-      console.error("Error al registrar la cita:", err);
-      setError(err.response?.data?.message || "Error al agendar la cita. Revisa los datos.");
+      console.error("Error al crear la cita:", err);
+      setError("No se pudo registrar la cita. Revisa los horarios e intenta de nuevo.");
     } finally {
-      setLoading(false);
+      setLoadingSubmit(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl border border-slate-200 overflow-hidden transform transition-all">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden relative border border-slate-100 animate-fade-in">
         
         {/* Encabezado */}
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-900">Agendar Nueva Cita</h3>
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Agendar Nueva Cita</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Completa los datos para reservar el espacio médico.</p>
+          </div>
           <button 
-            onClick={onClose} 
-            className="text-slate-400 hover:text-slate-600 text-xl font-semibold transition-colors"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            &times;
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
+            <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-medium">
               {error}
             </div>
           )}
 
-          {/* Menú Desplegable de Pacientes */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Paciente *
-            </label>
+          {/* Selector de Pacientes */}
+          <div className="flex flex-col space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Paciente</label>
             <select
-              name="pacienteId"
-              required
-              value={formData.pacienteId}
-              onChange={handleChange}
+              value={idPaciente}
+              onChange={(e) => setIdPaciente(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               disabled={loadingPacientes}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all disabled:opacity-60"
             >
-              <option value="">
-                {loadingPacientes ? "Cargando pacientes..." : "--- Selecciona un paciente ---"}
-              </option>
+              <option value="">-- Selecciona un paciente --</option>
               {pacientes.map((p) => (
                 <option key={p.idPaciente} value={p.idPaciente}>
-                  {p.nombre} {p.apellidos}
+                  {p.nombre} {p.apellido || p.apellidos}
                 </option>
               ))}
             </select>
+            {loadingPacientes && <span className="text-xs text-slate-400">Cargando lista de pacientes...</span>}
           </div>
 
-          {/* Fecha y Hora en paralelo */}
+          {/* Fecha y Hora en Grid */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Fecha *
-              </label>
+            <div className="flex flex-col space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Fecha</label>
               <input
                 type="date"
-                name="fecha"
-                required
-                value={formData.fecha}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Hora *
-              </label>
+
+            <div className="flex flex-col space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Hora</label>
               <input
                 type="time"
-                name="hora"
-                required
-                value={formData.hora}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                value={hora}
+                onChange={(e) => setHora(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               />
             </div>
           </div>
 
-          {/* Motivo de consulta */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Motivo de la Consulta *
-            </label>
+          {/* Motivo de la Consulta */}
+          <div className="flex flex-col space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Motivo de la Consulta</label>
             <textarea
-              name="motivo"
-              required
-              rows="3"
-              value={formData.motivo}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
-              placeholder="Ej. Control mensual de hipertensión arterial o revisión de estudios clínicos."
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ej. Control mensual, limpieza dental, valoración inicial..."
+              rows={3}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
             />
           </div>
 
-          {/* Botones de acción inferiores */}
-          <div className="pt-4 border-t border-slate-100 flex justify-end space-x-3">
+          {/* Botones de acción */}
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
-              disabled={loading}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors"
+              disabled={loadingSubmit}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={loading || loadingPacientes}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm transition-colors disabled:opacity-50"
+              disabled={loadingSubmit}
             >
-              {loading ? "Agendando..." : "Confirmar Cita"}
+              {loadingSubmit ? "Guardando..." : "Confirmar Cita"}
             </button>
           </div>
         </form>

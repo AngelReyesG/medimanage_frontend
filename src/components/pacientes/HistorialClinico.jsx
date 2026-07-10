@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import API from '../../services/api';
+import ListaNotasEvolucion from './ListaNotasEvolucion.jsx';
 
 const HistorialClinico = ({ idPaciente, nombrePaciente }) => {
+  const [activeTab, setActiveTab] = useState('antecedentes'); // 'antecedentes' o 'consultas'
   const [antecedentes, setAntecedentes] = useState({
     antecedentesFamiliares: '',
     antecedentesPatologicos: '',
@@ -12,14 +14,11 @@ const HistorialClinico = ({ idPaciente, nombrePaciente }) => {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ texto: '', tipo: '' });
 
-  // Cargar los antecedentes desde el backend al montar el componente o cambiar de paciente
-  // Cargar los antecedentes desde el backend al montar el componente o cambiar de paciente
   useEffect(() => {
     const cargarHistorial = async () => {
       try {
         setLoading(true);
         const response = await API.get(`/api/historias-clinicas/paciente/${idPaciente}`);
-        
         if (response.data) {
           setAntecedentes({
             antecedentesFamiliares: response.data.antecedentesFamiliares || '',
@@ -27,7 +26,6 @@ const HistorialClinico = ({ idPaciente, nombrePaciente }) => {
             antecedentesNoPatologicos: response.data.antecedentesNoPatologicos || ''
           });
         }
-        // 🚀 Corregido: Quitamos la línea de setError que no existía
       } catch (err) {
         console.error("Error al cargar historia clínica:", err);
         setMensaje({ texto: "No se pudo recuperar el expediente clínico.", tipo: "error" });
@@ -43,10 +41,7 @@ const HistorialClinico = ({ idPaciente, nombrePaciente }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setAntecedentes({
-      ...antecedentes,
-      [name]: value
-    });
+    setAntecedentes({ ...antecedentes, [name]: value });
   };
 
   const handleGuardar = async (e) => {
@@ -55,11 +50,8 @@ const HistorialClinico = ({ idPaciente, nombrePaciente }) => {
     setMensaje({ texto: '', tipo: '' });
 
     try {
-      // Consumimos el endpoint PUT que actualiza o inserta de forma segura
       await API.put(`/api/historias-clinicas/paciente/${idPaciente}`, antecedentes);
       setMensaje({ texto: '¡Expediente actualizado con éxito!', tipo: 'exito' });
-      
-      // Limpiar el mensaje de éxito después de 3 segundos
       setTimeout(() => setMensaje({ texto: '', tipo: '' }), 3000);
     } catch (err) {
       console.error("Error al guardar historia clínica:", err);
@@ -79,84 +71,107 @@ const HistorialClinico = ({ idPaciente, nombrePaciente }) => {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-4xl mx-auto">
-      {/* Encabezado interno */}
-      <div className="border-b border-slate-100 pb-4 mb-6 flex justify-between items-center">
-        <div>
-          <h4 className="text-lg font-bold text-slate-900">Antecedentes Clínicos</h4>
-          <p className="text-xs text-slate-500 mt-0.5">Paciente: <span className="font-semibold text-slate-700">{nombrePaciente}</span></p>
-        </div>
+      {/* Encabezado Interno */}
+      <div className="border-b border-slate-100 pb-2 mb-4">
+        <h4 className="text-lg font-bold text-slate-900">Expediente Clínico Integral</h4>
+        <p className="text-xs text-slate-500 mt-0.5">Paciente: <span className="font-semibold text-slate-700">{nombrePaciente}</span></p>
         
-        <button
-          onClick={handleGuardar}
-          disabled={guardando}
-          className={`px-5 py-2 rounded-xl text-sm font-semibold text-white shadow-sm transition-all ${
-            guardando 
-              ? 'bg-slate-400 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-          }`}
-        >
-          {guardando ? 'Guardando...' : 'Guardar Expediente'}
-        </button>
+        {/* NAVEGACIÓN POR PESTAÑAS (TABS) */}
+        <div className="flex space-x-4 mt-4 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setActiveTab('antecedentes')}
+            className={`pb-2 px-1 border-b-2 transition-all ${
+              activeTab === 'antecedentes' 
+                ? 'border-blue-600 text-blue-600 font-bold' 
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            📋 Antecedentes Generales
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('consultas')}
+            className={`pb-2 px-1 border-b-2 transition-all ${
+              activeTab === 'consultas' 
+                ? 'border-blue-600 text-blue-600 font-bold' 
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            🩺 Notas de Evolución (Consultas)
+          </button>
+        </div>
       </div>
 
-      {/* Alertas de Estado */}
-      {mensaje.texto && (
-        <div className={`p-4 mb-6 rounded-xl text-sm font-medium border ${
-          mensaje.tipo === 'exito' 
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-            : 'bg-rose-50 text-rose-700 border-rose-200'
-        }`}>
-          {mensaje.texto}
-        </div>
-      )}
+      {/* CUERPO DEL CONTENEDOR CON CONDICIONAL REFORZADO */}
+      <div className="mt-4">
+        {activeTab === 'antecedentes' && (
+          <div>
+            <div className="flex justify-end mb-4">
+              <button
+                type="button"
+                onClick={handleGuardar}
+                disabled={guardando}
+                className={`px-5 py-2 rounded-xl text-sm font-semibold text-white shadow-sm transition-all ${
+                  guardando ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+                }`}
+              >
+                {guardando ? 'Guardando...' : 'Guardar Antecedentes'}
+              </button>
+            </div>
 
-      {/* Formulario de tres bloques de texto amplios */}
-      <form onSubmit={handleGuardar} className="space-y-6">
-        <div>
-          <label className="block text-sm font-bold text-slate-800 mb-2">
-            🧬 Antecedentes Heredofamiliares
-          </label>
-          <p className="text-xs text-slate-400 mb-2">Enfermedades de línea sanguínea directa (Diabetes, Hipertensión, Cáncer, Cardiopatías).</p>
-          <textarea
-            name="antecedentesFamiliares"
-            rows="3"
-            value={antecedentes.antecedentesFamiliares}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
-            placeholder="Redactar patologías familiares..."
-          />
-        </div>
+            {mensaje.texto && (
+              <div className={`p-4 mb-6 rounded-xl text-sm font-medium border ${
+                mensaje.tipo === 'exito' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+              }`}>
+                {mensaje.texto}
+              </div>
+            )}
 
-        <div>
-          <label className="block text-sm font-bold text-slate-800 mb-2">
-            🏥 Antecedentes Personales Patológicos
-          </label>
-          <p className="text-xs text-slate-400 mb-2">Historial médico propio (Enfermedades crónicas, cirugías previas, hospitalizaciones, traumatismos).</p>
-          <textarea
-            name="antecedentesPatologicos"
-            rows="3"
-            value={antecedentes.antecedentesPatologicos}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
-            placeholder="Redactar antecedentes médicos y quirúrgicos del paciente..."
-          />
-        </div>
+            <form className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1">🧬 Antecedentes Heredofamiliares</label>
+                <textarea
+                  name="antecedentesFamiliares"
+                  rows="3"
+                  value={antecedentes.antecedentesFamiliares}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+                  placeholder="Ej. Diabetes, Hipertensión en línea directa..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1">🏥 Antecedentes Personales Patológicos</label>
+                <textarea
+                  name="antecedentesPatologicos"
+                  rows="3"
+                  value={antecedentes.antecedentesPatologicos}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+                  placeholder="Ej. Cirugías previas, fracturas, enfermedades crónicas..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-800 mb-1">🌿 Antecedentes Personales No Patológicos</label>
+                <textarea
+                  name="antecedentesNoPatologicos"
+                  rows="3"
+                  value={antecedentes.antecedentesNoPatologicos}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+                  placeholder="Ej. Tabaquismo, alimentación, vacunas, vivienda..."
+                />
+              </div>
+            </form>
+          </div>
+        )}
 
-        <div>
-          <label className="block text-sm font-bold text-slate-800 mb-2">
-            🌿 Antecedentes Personales No Patológicos
-          </label>
-          <p className="text-xs text-slate-400 mb-2">Estilo de vida y hábitos (Tabaquismo, alcoholismo, sustancias, vivienda, alimentación, vacunas).</p>
-          <textarea
-            name="antecedentesNoPatologicos"
-            rows="3"
-            value={antecedentes.antecedentesNoPatologicos}
-            onChange={handleChange}
-            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
-            placeholder="Redactar hábitos, adicciones o condiciones generales de vida..."
-          />
-        </div>
-      </form>
+        {activeTab === 'consultas' && (
+          <div className="animate-fade-in">
+            <ListaNotasEvolucion idPaciente={idPaciente} />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
