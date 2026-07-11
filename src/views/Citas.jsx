@@ -1,171 +1,181 @@
 import { useEffect, useState } from "react";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import timeGridPlugin from "@fullcalendar/timegrid";
+import interactionPlugin from "@fullcalendar/interaction";
 import API from "../services/api";
 import ModalCita from "../components/ModalCita";
+import ModalDetalleCita from "../components/ModalDetalleCita";
 
 function Citas() {
-  const [citas, setCitas] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [updatingId, setUpdatingId] = useState(null); // Para mostrar un estado de carga visual por fila
+  const [nombreMedico, setNombreMedico] = useState("");
+  const [isDetalleOpen, setIsDetalleOpen] = useState(false);
+  const [citaSeleccionada, setCitaSeleccionada] = useState(null);
 
   const obtenerCitas = async () => {
     try {
       setLoading(true);
-      setError("");
       const response = await API.get("/api/citas");
-      setCitas(response.data);
+      
+      const citasMapeadas = response.data.map((cita) => {
+        let backgroundColor = "#3b82f6"; 
+        if (cita.estado === "COMPLETADA") backgroundColor = "#10b981"; 
+        if (cita.estado === "CANCELADA") backgroundColor = "#ef4444"; 
+
+        if (cita.usuario && !nombreMedico) {
+          setNombreMedico(`${cita.usuario.nombre} ${cita.usuario.apellido || ""}`);
+        }
+
+        return {
+          id: cita.idCita,
+          start: cita.fechaHora, 
+          title: `${cita.paciente?.nombre || "Paciente"} - ${cita.motivo}`,
+          backgroundColor: backgroundColor,
+          borderColor: backgroundColor,
+          extendedProps: {
+            estado: cita.estado,
+            paciente: `${cita.paciente?.nombre || ""} ${cita.paciente?.apellido || cita.paciente?.apellidos || ""}`,
+            // ADICIÓN: Mapeamos el id del paciente para vincularlo al Selector del ModalCita
+            pacienteId: cita.paciente?.idPaciente || "",
+            motivo: cita.motivo
+          }
+        };
+      });
+
+      setEvents(citasMapeadas);
+      setError("");
     } catch (err) {
-      console.error("Error al traer las citas:", err);
-      setError("No se pudo cargar la agenda de citas.");
+      console.error("Error al obtener citas para el calendario:", err);
+      setError("No se pudo sincronizar la agenda médica.");
     } finally {
       setLoading(false);
     }
   };
 
-  const cambiarEstadoCita = async (idCita, nuevoEstado) => {
-    setUpdatingId(idCita);
-    try {
-      // Pasamos el estado estrictamente en MAYÚSCULAS para que Spring Boot lo parsee sin errores al Enum
-      const estadoUpper = nuevoEstado.toUpperCase();
-      
-      // PatchMapping: /api/citas/{id}/estado?nuevoEstado=VALOR
-      await API.patch(`/api/citas/${idCita}/estado`, null, {
-        params: { nuevoEstado: estadoUpper }
-      });
-
-      // Actualizamos el estado local de la tabla de forma inmediata y limpia sin hacer otro GET total
-      setCitas((prevCitas) =>
-        prevCitas.map((cita) =>
-          cita.idCita === idCita ? { ...cita, estado: estadoUpper } : cita
-        )
-      );
-    } catch (err) {
-      console.error("Error al cambiar el estado de la cita:", err);
-      alert("No se pudo actualizar el estado de la cita. Verifica la conexión.");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
   useEffect(() => {
     obtenerCitas();
+    
+    const usuarioLogueado = localStorage.getItem("usuario"); 
+    if (usuarioLogueado) {
+      const user = JSON.parse(usuarioLogueado);
+      setNombreMedico(`${user.nombre} ${user.apellido || ""}`);
+    }
   }, []);
 
-  // Helper seguro para formatear la fecha y hora sin romper por la "T" o el espacio
-  const formatFechaHora = (strFecha) => {
-    if (!strFecha) return { fecha: "Sin fecha", hora: "" };
-    try {
-      // Reemplazamos espacio por T por si viene en formato plano del objeto descifrado
-      const isoStr = strFecha.includes(" ") ? strFecha.replace(" ", "T") : strFecha;
-      const dateObj = new Date(isoStr);
-      
-      if (isNaN(dateObj.getTime())) return { fecha: strFecha, hora: "" };
+  const handleEventClick = (info) => {
+    const { paciente, estado, motivo, pacienteId } = info.event.extendedProps;
 
-      return {
-        fecha: dateObj.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }),
-        hora: dateObj.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) + " hrs"
-      };
-    } catch (e) {
-      return { fecha: "Formato inválido", hora: "" };
-    }
+    setCitaSeleccionada({
+      id: info.event.id,
+      start: info.event.startStr,
+      paciente,
+      pacienteId, // Pasamos el ID al estado de selección
+      estado,
+      motivo
+    });
+
+    setIsDetalleOpen(true);
+  };
+
+  // ADICIÓN: Función puente para abrir el ModalCita en modo edición
+  const handleGestionarCita = () => {
+    setIsDetalleOpen(false); // Cierra la vista de detalle
+    setIsModalOpen(true);    // Abre el formulario de edición
+  };
+
+  // ADICIÓN: Limpieza de estados al cerrar el formulario de creación/edición
+  const handleCloseModalCita = () => {
+    setIsModalOpen(false);
+    setCitaSeleccionada(null); // Evita que se quede el registro pegado
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden relative">
-      
-      {/* Encabezado */}
-      <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Agenda Médica</h3>
-          <p className="text-sm text-slate-500 mt-0.5">Controla los horarios, motivos de consulta y estados de tus citas diarias.</p>
+          <h3 className="text-xl font-bold text-slate-900">
+            Agenda Médica {nombreMedico && <span className="text-blue-600 font-medium">| Dr. {nombreMedico}</span>}
+          </h3>
+          <p className="text-sm text-slate-500 mt-0.5">Consulta y gestiona tus horarios de consultas en tiempo real.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition-colors"
+        <button
+          onClick={() => {
+            setCitaSeleccionada(null); // Asegura modo creación
+            setIsModalOpen(true);
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-colors w-full sm:w-auto text-center"
         >
           + Agendar Cita
         </button>
       </div>
 
-      {loading && <p className="p-6 text-slate-500 text-sm">Sincronizando agenda...</p>}
-      {error && <p className="p-6 text-red-600 text-sm font-medium">{error}</p>}
-
-      {/* Tabla de la Agenda */}
-      {!loading && !error && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider">
-                <th className="py-3 px-6">Paciente</th>
-                <th className="py-3 px-6">Fecha y Hora</th>
-                <th className="py-3 px-6">Motivo de Consulta</th>
-                <th className="py-3 px-6 text-center">Estado / Gestión</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm text-slate-600">
-              {citas.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="py-8 text-center text-slate-400">
-                    No tienes consultas programadas. ¡Agenda una nueva cita!
-                  </td>
-                </tr>
-              ) : (
-                citas.map((cita) => {
-                  const { fecha, hora } = formatFechaHora(cita.fechaHora || cita.fechaHour);
-                  return (
-                    <tr key={cita.idCita} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-4 px-6 font-semibold text-slate-900">
-                        {cita.paciente ? `${cita.paciente.nombre} ${cita.paciente.apellido || cita.paciente.apellidos || ''}` : <span className="text-red-400 font-normal">No asignado</span>}
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-slate-700">{fecha}</span>
-                          <span className="text-xs text-slate-400">{hora}</span>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6 text-slate-500 max-w-xs truncate">
-                        {cita.motivo}
-                      </td>
-                      
-                      {/* Gestión interactiva del Estado */}
-                      <td className="py-4 px-6 text-center">
-                        <div className="inline-flex items-center space-x-2">
-                          <select
-                            value={cita.estado}
-                            disabled={updatingId === cita.idCita}
-                            onChange={(e) => cambiarEstadoCita(cita.idCita, e.target.value)}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/10
-                              ${cita.estado === "PENDIENTE" ? "text-amber-700 border-amber-200 bg-amber-50/50" : ""}
-                              ${cita.estado === "CONFIRMADA" ? "text-emerald-700 border-emerald-200 bg-emerald-50/50" : ""}
-                              ${cita.estado === "CANCELADA" ? "text-rose-700 border-rose-200 bg-rose-50/50" : ""}
-                              ${cita.estado === "COMPLETADA" ? "text-blue-700 border-blue-200 bg-blue-50/50" : ""}
-                            `}
-                          >
-                            <option value="PENDIENTE">Pendiente</option>
-                            <option value="CONFIRMADA">Confirmada</option>
-                            <option value="COMPLETADA">Completada</option>
-                            <option value="CANCELADA">Cancelada</option>
-                          </select>
-                          {updatingId === cita.idCita && (
-                            <span className="text-[10px] text-slate-400 animate-pulse">...</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl text-sm font-medium">
+          {error}
         </div>
       )}
 
-      <ModalCita 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onCitaCreada={obtenerCitas} 
+      <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm">
+        {loading ? (
+          <div className="py-20 text-center text-slate-500 text-sm font-medium">
+            Sincronizando agenda interactiva...
+          </div>
+        ) : (
+          <div className="prose max-w-none">
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="timeGridWeek"
+              headerToolbar={{
+                left: "prev,next today",
+                center: "", 
+                right: "dayGridMonth,timeGridWeek,timeGridDay"
+              }}
+              locale="es"
+              buttonText={{
+                today: "Hoy",
+                month: "Mes",
+                week: "Semana",
+                day: "Día"
+              }}
+              events={events}
+              eventClick={handleEventClick}
+              editable={false}
+              selectable={true}
+              slotMinTime="07:00:00"
+              slotMaxTime="21:00:00"
+              allDaySlot={false}
+              eventTimeFormat={{
+                hour: "2-digit",
+                minute: "2-digit",
+                meridiem: false,
+                hour12: false
+              }}
+              height="auto"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* CORRECCIÓN: Vinculación de props de edición y control de cierre */}
+      <ModalCita
+        isOpen={isModalOpen}
+        onClose={handleCloseModalCita}
+        onCitaCreada={obtenerCitas}
+        citaAEditar={citaSeleccionada} 
       />
+
+      {/* CORRECCIÓN: Conexión de la función onGestionar */}
+      <ModalDetalleCita
+        isOpen={isDetalleOpen}
+        onClose={() => setIsDetalleOpen(false)}
+        cita={citaSeleccionada}
+        onGestionar={handleGestionarCita} 
+      />
+      
     </div>
   );
 }

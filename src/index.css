@@ -1,4 +1,44 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 @import "tailwindcss";
+
+.fc .fc-button-primary {
+  @apply bg-slate-800 border-none hover:bg-slate-700 text-white rounded-lg px-3 py-1.5 font-medium text-xs uppercase tracking-wider transition-colors shadow-sm capitalize;
+}
+.fc .fc-button-primary:disabled {
+  @apply bg-slate-200 text-slate-400 opacity-50;
+}
+.fc .fc-button-active {
+  @apply bg-blue-600;
+}
+.fc-event {
+  @apply rounded-lg p-1 shadow-sm border-none text-xs font-medium cursor-pointer transition-transform hover:scale-[1.02];
+}
+.fc .fc-toolbar-title {
+  @apply text-base font-bold text-slate-800 capitalize;
+}
+
+.fc .fc-day-today {
+  background-color: rgb(240, 246, 255) !important; 
+}
+
+/* Mejorar el aspecto general de los bordes e indicadores de la cuadrícula */
+.fc th {
+  @apply bg-slate-50 text-slate-700 font-bold border-slate-200 py-2 text-xs uppercase tracking-wider;
+}
+
+.fc td {
+  @apply border-slate-100;
+}
+
+/* Suavizar el indicador de la línea de la hora actual */
+.fc .fc-timegrid-now-indicator-line {
+  border-color: #3b82f6 !important;
+}
+.fc .fc-timegrid-now-indicator-arrow {
+  border-top-color: #3b82f6 !important;
+  border-bottom-color: #3b82f6 !important;
+}
+
+/* Refinar las tarjetas de eventos */
+.fc-event {
+  @apply rounded-xl px-2 py-1.5 shadow-md border-none text-xs font-semibold tracking-wide cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-lg;
+}

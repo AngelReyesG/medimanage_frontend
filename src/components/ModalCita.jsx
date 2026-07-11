@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
 
-function ModalCita({ isOpen, onClose, onCitaCreada }) {
+function ModalCita({ isOpen, onClose, onCitaCreada, citaAEditar }) {
   const [pacientes, setPacientes] = useState([]);
   const [loadingPacientes, setLoadingPacientes] = useState(false);
   
-  // Estados para el formulario de la Cita
   const [idPaciente, setIdPaciente] = useState("");
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
@@ -13,7 +12,6 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [error, setError] = useState("");
 
-  // Cargar lista corta de pacientes para el selector (Select) al abrir el modal
   useEffect(() => {
     if (isOpen) {
       const cargarPacientes = async () => {
@@ -28,14 +26,27 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
         }
       };
       cargarPacientes();
-      // Limpiar el formulario al abrirlo
-      setIdPaciente("");
-      setFecha("");
-      setHora("");
-      setMotivo("");
+
+      if (citaAEditar) {
+        setIdPaciente(citaAEditar.pacienteId || "");
+        setMotivo(citaAEditar.motivo || "");
+
+        if (citaAEditar.start) {
+          const [fechaParte, horaParte] = citaAEditar.start.split("T");
+          setFecha(fechaParte || "");
+          // CORRECCIÓN 2: .substring con 's' minúscula
+          setHora(horaParte ? horaParte.substring(0, 5) : "");
+        }
+      } else {
+        setIdPaciente("");
+        setFecha("");
+        setHora("");
+        setMotivo("");
+        setError("");
+      }
       setError("");
     }
-  }, [isOpen]);
+  }, [isOpen, citaAEditar]);
 
   if (!isOpen) return null;
 
@@ -48,34 +59,39 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
 
     try {
       setLoadingSubmit(true);
-      setError("");
-      
-      // Ajusta este objeto según los atributos exactos de tu entidad Cita en Spring Boot
-      await API.post("/api/citas", {
-        paciente: { idPaciente: parseInt(idPaciente) },
-        fecha,
-        hora,
-        motivo
-      });
+      const fechaHoraIso = `${fecha}T${hora}:00`;
+      const payload = {
+        pacienteId: parseInt(idPaciente, 10),
+        fechaHora: fechaHoraIso,
+        motivo: motivo
+      };
 
-      onCitaCreada(); // Callback para refrescar el calendario o la tabla en Citas.jsx
-      onClose();      // Cerrar el modal
+      // CORRECCIÓN 3: Cambiado playload por payload
+      if (citaAEditar) {
+        await API.put(`/api/citas/${citaAEditar.id}`, payload);
+      } else {
+        await API.post("/api/citas", payload);
+      }
+      
+      if (onCitaCreada) await onCitaCreada();
+      onClose();
     } catch (err) {
-      console.error("Error al crear la cita:", err);
+      console.error("Error al registrar la cita:", err);
       setError("No se pudo registrar la cita. Revisa los horarios e intenta de nuevo.");
     } finally {
       setLoadingSubmit(false);
     }
   };
 
-  return (
+  return (  
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex justify-center items-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden relative border border-slate-100 animate-fade-in">
         
-        {/* Encabezado */}
         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Agendar Nueva Cita</h3>
+            <h3 className="text-lg font-bold text-slate-900">
+              {citaAEditar ? "Modificar Cita Médica" : "Agendar Nueva Cita"}
+            </h3>
             <p className="text-xs text-slate-500 mt-0.5">Completa los datos para reservar el espacio médico.</p>
           </div>
           <button 
@@ -88,7 +104,6 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
           </button>
         </div>
 
-        {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-600 font-medium">
@@ -96,7 +111,6 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
             </div>
           )}
 
-          {/* Selector de Pacientes */}
           <div className="flex flex-col space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Paciente</label>
             <select
@@ -115,7 +129,6 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
             {loadingPacientes && <span className="text-xs text-slate-400">Cargando lista de pacientes...</span>}
           </div>
 
-          {/* Fecha y Hora en Grid */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col space-y-1.5">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Fecha</label>
@@ -138,7 +151,6 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
             </div>
           </div>
 
-          {/* Motivo de la Consulta */}
           <div className="flex flex-col space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Motivo de la Consulta</label>
             <textarea
@@ -150,7 +162,6 @@ function ModalCita({ isOpen, onClose, onCitaCreada }) {
             />
           </div>
 
-          {/* Botones de acción */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
             <button
               type="button"
