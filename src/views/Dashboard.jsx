@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import API from "../services/api";
+import PanelDoctor from "./PanelDoctor";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -30,7 +31,6 @@ function Dashboard() {
         });
       } catch (err) {
         console.error("Error capturado en Dashboard: ", err);
-        // Si es un error de autenticación, limpiamos sesión inmediatamente
         if (err.response?.status === 401) {
           handleLogout();
           return;
@@ -83,7 +83,7 @@ function Dashboard() {
       </aside>
 
       {/* Área de Contenido Variable */}
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-8 overflow-y-auto">
         <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
           <h2 className="text-2xl font-bold text-slate-950">
             {titulosVistas[location.pathname] || "Panel de Control"}
@@ -95,8 +95,11 @@ function Dashboard() {
 
         {/* Renderizado condicional del Home o las vistas hijas */}
         {location.pathname === "/dashboard" ? (
-          <div>
-            {stats.error && <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm">{stats.error}</div>}
+          <div className="space-y-8"> {/* Añadido espacio vertical entre componentes */}
+            
+            {stats.error && <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl text-sm">{stats.error}</div>}
+            
+            {/* Fila de Tarjetas de Estadísticas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-sm">
                 <h3 className="text-sm font-medium text-slate-500">Citas para Hoy</h3>
@@ -113,6 +116,10 @@ function Dashboard() {
                 </p>
               </div>
             </div>
+
+            {/* 🚀 EL PANEL COMPLETO SE RENDERIZA AQUÍ ABAJO DIRECTAMENTE */}
+            <PanelDoctor />
+
           </div>
         ) : (
           <Outlet /> 

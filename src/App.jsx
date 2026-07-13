@@ -4,6 +4,8 @@ import Dashboard from "./views/Dashboard";
 import Pacientes from "./views/Pacientes";
 import Citas from "./views/Citas";
 import ProtectedRoute from "./components/ProtectedRoute";
+import WidgetPaciente from "./views/paciente/WidgetPaciente";
+import PanelDoctor from "./views/PanelDoctor"; // <-- Asegúrate de ajustar la ruta real de tu archivo
 
 function App() {
   return (
@@ -20,15 +22,15 @@ function App() {
           </ProtectedRoute>
         } 
       >
-        {/* 💡 Index es lo que se muestra por defecto al entrar a /dashboard */}
         <Route index element={
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           </div>
-        } />
-        
+        } />  
         <Route path="pacientes" element={<Pacientes />} />
         <Route path="citas" element={<Citas />} />
+        <Route path="solicitudes" element={<PanelDoctor />} />
       </Route>
+      <Route path="/agendar/:medicoId" element={<WidgetPaciente />} />
     </Routes>
   );
 }
